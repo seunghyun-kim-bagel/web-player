@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Player - Remote Desktop</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- 상태 표시 바 -->
+    <div id="status-bar">
+        <div class="status-left">
+            <span id="connection-status" class="status-disconnected">Disconnected</span>
+        </div>
+        <div class="status-right">
+            <span id="fps-counter">0 FPS</span>
+            <span id="resolution">-</span>
+        </div>
+    </div>
+
+    <!-- 화면 컨테이너 -->
+    <div id="screen-container">
+        <canvas id="screen-canvas"></canvas>
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Connecting...</p>
+        </div>
+    </div>
+
+    <!-- 컨트롤 패널 -->
+    <div id="control-panel">
+        <button id="btn-connect" class="btn btn-primary">Connect</button>
+        <button id="btn-disconnect" class="btn btn-secondary" disabled>Disconnect</button>
+        <button id="btn-fullscreen" class="btn btn-secondary">Fullscreen</button>
+
+        <div class="settings">
+            <label for="quality-slider">
+                Quality:
+                <input type="range" id="quality-slider" min="10" max="100" value="70" step="10">
+                <span id="quality-value">70%</span>
+            </label>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="/static/js/websocket-client.js"></script>
+    <script src="/static/js/screen-renderer.js"></script>
+    <script src="/static/js/input-handler.js"></script>
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

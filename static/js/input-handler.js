@@ -58,7 +58,12 @@ class InputHandler {
     }
 
     handleClick(event) {
-        if (!this.enabled) return;
+        console.log('[InputHandler] handleClick called, enabled:', this.enabled);
+
+        if (!this.enabled) {
+            console.log('[InputHandler] Click ignored: handler not enabled');
+            return;
+        }
         if (event.button !== 0) return; // 좌클릭만
 
         // 드래그였으면 클릭 무시
@@ -68,17 +73,23 @@ class InputHandler {
         }
 
         const { canvasX, canvasY } = this.getCanvasCoords(event);
-        const remoteCoords = this.renderer.canvasToRemoteCoords(canvasX, canvasY);
+        console.log('[InputHandler] Canvas coords:', canvasX, canvasY);
 
-        this.wsClient.send({
+        const remoteCoords = this.renderer.canvasToRemoteCoords(canvasX, canvasY);
+        console.log('[InputHandler] Remote coords:', remoteCoords);
+
+        const action = {
             type: 'action',
             action_type: 'click',
             x: remoteCoords.x,
             y: remoteCoords.y
-        });
+        };
+
+        console.log('[InputHandler] Sending action:', action);
+        this.wsClient.send(action);
 
         this.renderer.drawClickFeedback(canvasX, canvasY);
-        console.log(`Click at (${remoteCoords.x}, ${remoteCoords.y})`);
+        console.log(`✓ Click sent: (${remoteCoords.x}, ${remoteCoords.y})`);
     }
 
     handleDoubleClick(event) {

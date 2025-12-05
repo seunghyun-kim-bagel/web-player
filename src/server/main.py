@@ -10,9 +10,10 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import settings
-from .models import ActionRequest
+from .models import ActionRequest, AICommandRequest, AICommandResponse
 from .screen_controller import ScreenController
 from .action_handler import ActionHandler
+from .ui_tars_client import UITarsClient
 
 # Logging setup
 logging.basicConfig(
@@ -39,6 +40,7 @@ action_handler = ActionHandler(
     screen_width=screen_controller.screen_width,
     screen_height=screen_controller.screen_height
 )
+ui_tars_client = UITarsClient()
 
 
 @app.get("/")
@@ -95,6 +97,70 @@ async def websocket_endpoint(websocket: WebSocket):
                         "message": str(e),
                         "code": "ACTION_ERROR"
                     })
+
+            elif data.get("type") == "ai_command":
+                # AI 명령 처리
+                try:
+                    instruction = data.get("instruction", "")
+                    logger.info(f"AI command received: {instruction}")
+
+                    if not ui_tars_client.is_available():
+                        await websocket.send_json(
+                            AICommandResponse(
+                                success=False,
+                                error="OpenAI API key not configured. Set OPENAI_API_KEY environment variable."
+                            ).model_dump()
+                        )
+                        continue
+
+                    # 현재 화면 캡처
+                    frame = screen_controller.capture_frame()
+                    if not frame:
+                        await websocket.send_json(
+                            AICommandResponse(
+                                success=False,
+                                error="Failed to capture screen"
+                            ).model_dump()
+                        )
+                        continue
+
+                    # UI-TARS 분석
+                    result = await ui_tars_client.analyze_and_act(
+                        screenshot_base64=frame.data,
+                        instruction=instruction,
+                        screen_width=screen_controller.screen_width,
+                        screen_height=screen_controller.screen_height
+                    )
+
+                    if result.get("success") and result.get("action_type"):
+                        # 액션 변환 및 실행
+                        action_request = ui_tars_client.convert_to_action_request(result)
+
+                        if action_request and result.get("action_type") != "finished":
+                            # 실제 액션 실행
+                            action = ActionRequest(**action_request)
+                            action_result = await action_handler.process_action(action)
+                            logger.info(f"Action executed: {action_result}")
+
+                    # 응답 전송
+                    await websocket.send_json(
+                        AICommandResponse(
+                            success=result.get("success", False),
+                            thought=result.get("thought"),
+                            action_type=result.get("action_type"),
+                            action_params=result.get("action_params"),
+                            error=result.get("error")
+                        ).model_dump()
+                    )
+
+                except Exception as e:
+                    logger.error(f"AI command error: {e}", exc_info=True)
+                    await websocket.send_json(
+                        AICommandResponse(
+                            success=False,
+                            error=str(e)
+                        ).model_dump()
+                    )
 
             elif data.get("type") == "config":
                 setting = data.get("setting")

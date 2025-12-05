@@ -27,6 +27,30 @@
         </div>
     </div>
 
+    <!-- AI 명령 입력 패널 -->
+    <div id="ai-command-panel">
+        <div class="ai-input-wrapper">
+            <input type="text" id="ai-command-input" placeholder="자연어 명령을 입력하세요 (예: 화면 중앙을 클릭해줘)" disabled>
+            <button id="btn-ai-execute" class="btn btn-ai" disabled>실행</button>
+        </div>
+        <div id="ai-status" class="ai-status hidden">
+            <div class="ai-thinking">
+                <span class="ai-spinner"></span>
+                <span id="ai-status-text">AI가 분석 중...</span>
+            </div>
+        </div>
+        <div id="ai-response" class="ai-response hidden">
+            <div class="ai-thought">
+                <strong>AI 분석:</strong>
+                <span id="ai-thought-text"></span>
+            </div>
+            <div class="ai-action">
+                <strong>실행 액션:</strong>
+                <span id="ai-action-text"></span>
+            </div>
+        </div>
+    </div>
+
     <!-- 컨트롤 패널 -->
     <div id="control-panel">
         <button id="btn-connect" class="btn btn-primary">Connect</button>
@@ -46,6 +70,7 @@
     <script src="/static/js/websocket-client.js"></script>
     <script src="/static/js/screen-renderer.js"></script>
     <script src="/static/js/input-handler.js"></script>
+    <script src="/static/js/ai-command-handler.js"></script>
     <script src="/static/js/main.js"></script>
 </body>
 </html>

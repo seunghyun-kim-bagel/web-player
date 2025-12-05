@@ -55,6 +55,11 @@ class Settings:
     log_level: str = "INFO"
     log_file: Optional[str] = "logs/server.log"
 
+    # UI-TARS / OpenAI
+    openai_api_key: Optional[str] = None
+    uitars_model: str = "gpt-4o"
+    uitars_mock_mode: bool = False  # 테스트용 Mock 모드
+
     @classmethod
     def from_env(cls) -> "Settings":
         """환경 변수에서 설정 로드"""
@@ -70,6 +75,9 @@ class Settings:
             ws_ping_timeout=get_env_int("WS_PING_TIMEOUT", 10),
             log_level=get_env("LOG_LEVEL", "INFO"),
             log_file=get_env("LOG_FILE", "logs/server.log"),
+            openai_api_key=get_env("OPENAI_API_KEY"),
+            uitars_model=get_env("UITARS_MODEL", "gpt-4o"),
+            uitars_mock_mode=get_env_bool("UITARS_MOCK_MODE", False),
         )
 
 

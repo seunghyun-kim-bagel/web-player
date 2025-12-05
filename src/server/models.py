@@ -56,3 +56,20 @@ class ConfigRequest(BaseModel):
     type: Literal["config"] = "config"
     setting: str
     value: int
+
+
+class AICommandRequest(BaseModel):
+    """AI 명령 요청"""
+    type: Literal["ai_command"] = "ai_command"
+    instruction: str = Field(..., description="자연어 명령")
+
+
+class AICommandResponse(BaseModel):
+    """AI 명령 실행 결과"""
+    type: Literal["ai_response"] = "ai_response"
+    success: bool
+    thought: Optional[str] = Field(None, description="AI 사고 과정")
+    action_type: Optional[str] = Field(None, description="실행된 액션 타입")
+    action_params: Optional[dict] = Field(None, description="액션 파라미터")
+    message: Optional[str] = None
+    error: Optional[str] = None

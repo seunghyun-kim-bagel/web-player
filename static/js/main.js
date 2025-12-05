@@ -6,6 +6,7 @@
 let wsClient;
 let screenRenderer;
 let inputHandler;
+let aiCommandHandler;
 let fpsUpdateInterval;
 
 // DOM 요소
@@ -56,6 +57,9 @@ function initializeApp() {
     // 입력 핸들러 생성
     inputHandler = new InputHandler(elements.canvas, wsClient, screenRenderer);
 
+    // AI 명령 핸들러 생성
+    aiCommandHandler = new AICommandHandler(wsClient);
+
     // WebSocket 이벤트 핸들러 등록
     wsClient.on('open', handleWebSocketOpen);
     wsClient.on('message', handleWebSocketMessage);
@@ -80,6 +84,7 @@ function handleWebSocketOpen(event) {
     hideLoading();
     enableDisconnectButton();
     inputHandler.enable();
+    aiCommandHandler.enable();
 }
 
 function handleWebSocketMessage(data) {
@@ -93,6 +98,11 @@ function handleWebSocketMessage(data) {
             if (data.status === 'connected') {
                 updateConnectionStatus('connected', 'Connected');
             }
+            break;
+
+        case 'ai_response':
+            // AI 명령 응답 처리
+            aiCommandHandler.handleResponse(data);
             break;
 
         case 'error':
@@ -116,6 +126,7 @@ function handleWebSocketClose(event) {
     showLoading();
     enableConnectButton();
     inputHandler.disable();
+    aiCommandHandler.disable();
     screenRenderer.clear();
 }
 

@@ -15,7 +15,7 @@ from .config import settings
 
 logger = logging.getLogger(__name__)
 
-# UI-TARS 시스템 프롬프트
+# UI-TARS 시스템 프롬프트 (단일 명령용)
 UITARS_SYSTEM_PROMPT = """You are a GUI agent. You are given a task and a screenshot. You need to perform the next action to complete the task.
 
 ## Output Format
@@ -46,6 +46,58 @@ finished(content='xxx')
 - Write a small plan and finally summarize your next action in `Thought` part.
 - For click actions, specify the exact pixel coordinates.
 - If the task is completed, use finished() action.
+"""
+
+
+# 목표 기반 자동화 프롬프트
+GOAL_AUTOMATION_PROMPT = """You are a GUI automation agent. You analyze screenshots and determine the next action to achieve the user's goal.
+
+## Your Task
+1. Analyze the current screen state
+2. Determine if the goal has been achieved
+3. If not achieved, recommend the next action to progress toward the goal
+4. Consider the action history to avoid repetitive or stuck behaviors
+
+## Output Format (JSON only, no markdown code blocks)
+{
+  "screen_analysis": {
+    "description": "Current screen state description in Korean",
+    "ready_for_action": true
+  },
+  "goal_status": {
+    "achieved": false,
+    "progress_description": "Progress toward goal in Korean",
+    "progress_percent": 0,
+    "confidence": 0.8
+  },
+  "recommended_action": {
+    "type": "click",
+    "params": {
+      "x": 100,
+      "y": 200
+    },
+    "reason": "Reason for this action in Korean"
+  },
+  "thought": "Your reasoning process in Korean"
+}
+
+## Action Types
+- click: Click at coordinates {"x": int, "y": int}
+- double_click: Double click {"x": int, "y": int}
+- type: Type text {"text": "string"}
+- scroll: Scroll {"x": int, "y": int, "direction": "up"|"down"}
+- hotkey: Keyboard shortcut {"key": "ctrl c"}
+- wait: Wait for screen to stabilize {}
+- none: No action needed (goal achieved or impossible) {}
+
+## Important Rules
+1. Coordinates are absolute pixel positions on the screenshot
+2. Always check if the goal is achieved FIRST
+3. If screen shows loading/animation, set ready_for_action to false
+4. Consider action history to avoid clicking the same spot repeatedly
+5. Set confidence (0.0-1.0) based on how certain you are
+6. Use Korean for all descriptions and reasoning
+7. Return ONLY valid JSON, no markdown formatting
 """
 
 
@@ -401,6 +453,180 @@ class UITarsClient:
             result["direction"] = params["direction"]
 
         return result
+
+    async def analyze_for_goal(
+        self,
+        screenshot_base64: str,
+        goal: str,
+        step: int,
+        max_steps: int,
+        action_history: str,
+        screen_width: int,
+        screen_height: int
+    ) -> Dict[str, Any]:
+        """
+        목표 기반 화면 분석
+
+        Args:
+            screenshot_base64: Base64 인코딩된 스크린샷
+            goal: 달성할 목표
+            step: 현재 스텝
+            max_steps: 최대 스텝
+            action_history: 이전 액션 히스토리 문자열
+            screen_width: 화면 너비
+            screen_height: 화면 높이
+
+        Returns:
+            {
+                "success": bool,
+                "screen_analysis": dict,
+                "goal_status": dict,
+                "recommended_action": dict,
+                "thought": str,
+                "error": str (optional)
+            }
+        """
+        if not self.is_available():
+            return {
+                "success": False,
+                "error": "OpenAI API key not configured"
+            }
+
+        # Mock 모드
+        if self.mock_mode:
+            return self._generate_mock_goal_response(
+                goal, step, max_steps, screen_width, screen_height
+            )
+
+        try:
+            user_message = f"""## Context
+- Goal: {goal}
+- Current Step: {step}/{max_steps}
+- Screen Size: {screen_width}x{screen_height}
+
+## Recent Action History
+{action_history}
+
+Analyze the screenshot and provide the next action to achieve the goal."""
+
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": GOAL_AUTOMATION_PROMPT
+                    },
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": user_message
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{screenshot_base64}",
+                                    "detail": "high"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_tokens=2048,
+                temperature=0.1
+            )
+
+            raw_response = response.choices[0].message.content
+            logger.info(f"Goal analysis raw response: {raw_response[:500]}...")
+
+            # JSON 파싱
+            parsed = self._parse_goal_response(raw_response)
+            parsed["success"] = True
+            parsed["raw_response"] = raw_response
+
+            return parsed
+
+        except Exception as e:
+            logger.error(f"Goal analysis error: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    def _parse_goal_response(self, response: str) -> Dict[str, Any]:
+        """목표 기반 응답 JSON 파싱"""
+        import json
+
+        result = {
+            "screen_analysis": {"description": "", "ready_for_action": True},
+            "goal_status": {
+                "achieved": False,
+                "progress_description": "",
+                "progress_percent": 0,
+                "confidence": 0.0
+            },
+            "recommended_action": None,
+            "thought": ""
+        }
+
+        try:
+            # JSON 블록 추출 시도
+            json_match = re.search(r'\{[\s\S]*\}', response)
+            if json_match:
+                json_str = json_match.group(0)
+                parsed = json.loads(json_str)
+
+                result["screen_analysis"] = parsed.get("screen_analysis", result["screen_analysis"])
+                result["goal_status"] = parsed.get("goal_status", result["goal_status"])
+                result["recommended_action"] = parsed.get("recommended_action")
+                result["thought"] = parsed.get("thought", "")
+
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse JSON response: {e}")
+            # 파싱 실패시 기본값 유지
+
+        return result
+
+    def _generate_mock_goal_response(
+        self,
+        goal: str,
+        step: int,
+        max_steps: int,
+        screen_width: int,
+        screen_height: int
+    ) -> Dict[str, Any]:
+        """Mock 모드용 목표 기반 응답 생성"""
+        goal_lower = goal.lower()
+
+        # 목표 달성 시뮬레이션 (5스텝 이상이면 달성)
+        achieved = step >= 5
+        progress = min(step * 20, 100)
+
+        # 기본 클릭 위치
+        x = screen_width // 2 + (step * 50) % (screen_width // 2)
+        y = screen_height // 2 + (step * 30) % (screen_height // 2)
+
+        return {
+            "success": True,
+            "screen_analysis": {
+                "description": f"[MOCK] Step {step}: 화면 분석 중...",
+                "ready_for_action": True
+            },
+            "goal_status": {
+                "achieved": achieved,
+                "progress_description": f"[MOCK] 목표 '{goal}' 진행 중 ({progress}%)",
+                "progress_percent": progress,
+                "confidence": 0.8 if achieved else 0.6
+            },
+            "recommended_action": None if achieved else {
+                "type": "click",
+                "params": {"x": x, "y": y},
+                "reason": f"[MOCK] Step {step}: 다음 위치 클릭"
+            },
+            "thought": f"[MOCK] Step {step}/{max_steps}: 목표 '{goal}' 향해 진행 중",
+            "raw_response": "[MOCK MODE]"
+        }
 
 
 # 전역 인스턴스

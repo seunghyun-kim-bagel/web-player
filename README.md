@@ -4,12 +4,38 @@
 
 ## Quick Start
 
+### 방법 1: 대화형 설정 스크립트 (권장)
+
+```bash
+# Clone & Setup
+git clone git@github.com:seunghyun-kim-bagel/web-player.git
+cd web-player
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+
+# Quickstart - 대화형 설정 및 실행
+chmod +x quickstart.sh
+./quickstart.sh
+```
+
+**quickstart.sh 기능:**
+- 실행 모드 선택 (Desktop / Appium)
+- Desktop 모드: 화면 영역 지정 툴 제공
+- 목표 자동화 설정 (최대 스텝, 목표)
+- 자동으로 서버 실행
+
+### 방법 2: 수동 설정
+
 ```bash
 # Install
 git clone git@github.com:seunghyun-kim-bagel/web-player.git
 cd web-player
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
+
+# Configuration
+cp .env.example .env
+# .env 파일을 편집하여 설정을 변경하세요
 
 # Run
 python run.py

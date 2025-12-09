@@ -7,6 +7,7 @@ let wsClient;
 let screenRenderer;
 let inputHandler;
 let aiCommandHandler;
+let goalAutomationHandler;
 let fpsUpdateInterval;
 
 // DOM 요소
@@ -60,6 +61,9 @@ function initializeApp() {
     // AI 명령 핸들러 생성
     aiCommandHandler = new AICommandHandler(wsClient);
 
+    // 목표 자동화 핸들러 생성
+    goalAutomationHandler = new GoalAutomationHandler(wsClient);
+
     // WebSocket 이벤트 핸들러 등록
     wsClient.on('open', handleWebSocketOpen);
     wsClient.on('message', handleWebSocketMessage);
@@ -85,6 +89,7 @@ function handleWebSocketOpen(event) {
     enableDisconnectButton();
     inputHandler.enable();
     aiCommandHandler.enable();
+    enableGoalAutomation();
 }
 
 function handleWebSocketMessage(data) {
@@ -103,6 +108,11 @@ function handleWebSocketMessage(data) {
         case 'ai_response':
             // AI 명령 응답 처리
             aiCommandHandler.handleResponse(data);
+            break;
+
+        case 'automation_status':
+            // 목표 자동화 상태 업데이트
+            goalAutomationHandler.handleMessage(data);
             break;
 
         case 'error':
@@ -127,6 +137,7 @@ function handleWebSocketClose(event) {
     enableConnectButton();
     inputHandler.disable();
     aiCommandHandler.disable();
+    disableGoalAutomation();
     screenRenderer.clear();
 }
 
@@ -219,6 +230,28 @@ function showNotification(message, type = 'info') {
         // 중요한 에러만 alert
         // alert(message);
     }
+}
+
+function enableGoalAutomation() {
+    const goalInput = document.getElementById('goal-input');
+    const maxStepsInput = document.getElementById('max-steps-input');
+    const startBtn = document.getElementById('start-automation-btn');
+
+    if (goalInput) goalInput.disabled = false;
+    if (maxStepsInput) maxStepsInput.disabled = false;
+    if (startBtn) startBtn.disabled = false;
+}
+
+function disableGoalAutomation() {
+    const goalInput = document.getElementById('goal-input');
+    const maxStepsInput = document.getElementById('max-steps-input');
+    const startBtn = document.getElementById('start-automation-btn');
+    const stopBtn = document.getElementById('stop-automation-btn');
+
+    if (goalInput) goalInput.disabled = true;
+    if (maxStepsInput) maxStepsInput.disabled = true;
+    if (startBtn) startBtn.disabled = true;
+    if (stopBtn) stopBtn.disabled = true;
 }
 
 // 클린업

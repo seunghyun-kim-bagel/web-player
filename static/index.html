@@ -51,6 +51,41 @@
         </div>
     </div>
 
+    <!-- 목표 기반 자동화 패널 -->
+    <div id="goal-automation-panel">
+        <div class="panel-header">
+            <h3>목표 자동화</h3>
+        </div>
+        <div class="goal-input-wrapper">
+            <input type="text" id="goal-input" placeholder="달성할 목표를 입력하세요 (예: 로그인 완료)" disabled>
+            <div class="goal-options">
+                <label>
+                    최대 스텝:
+                    <input type="number" id="max-steps-input" value="50" min="1" max="200" disabled>
+                </label>
+            </div>
+            <div class="goal-buttons">
+                <button id="start-automation-btn" class="btn btn-primary" disabled>시작</button>
+                <button id="stop-automation-btn" class="btn btn-danger" disabled>중지</button>
+            </div>
+        </div>
+        <div class="goal-progress">
+            <div class="progress-bar-container">
+                <div id="automation-progress" class="progress-bar"></div>
+            </div>
+            <span id="automation-progress-text">0%</span>
+        </div>
+        <div id="automation-status" class="automation-status">
+            <div class="status-item">
+                <span class="label">상태:</span>
+                <span class="value">대기 중</span>
+            </div>
+        </div>
+        <div id="automation-history" class="automation-history">
+            <!-- 히스토리 엔트리가 여기에 추가됨 -->
+        </div>
+    </div>
+
     <!-- 컨트롤 패널 -->
     <div id="control-panel">
         <button id="btn-connect" class="btn btn-primary">Connect</button>
@@ -71,6 +106,7 @@
     <script src="/static/js/screen-renderer.js"></script>
     <script src="/static/js/input-handler.js"></script>
     <script src="/static/js/ai-command-handler.js"></script>
+    <script src="/static/js/goal-automation-handler.js"></script>
     <script src="/static/js/main.js"></script>
 </body>
 </html>

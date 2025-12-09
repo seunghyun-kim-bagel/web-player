@@ -10,10 +10,11 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import settings
-from .models import ActionRequest, AICommandRequest, AICommandResponse
+from .models import ActionRequest, AICommandRequest, AICommandResponse, GoalAutomationRequest
 from .screen_controller import ScreenController
 from .action_handler import ActionHandler
 from .ui_tars_client import UITarsClient
+from .goal_runner import GoalAutomationRunner
 
 # Logging setup
 logging.basicConfig(
@@ -41,6 +42,11 @@ action_handler = ActionHandler(
     screen_height=screen_controller.screen_height
 )
 ui_tars_client = UITarsClient()
+goal_runner = GoalAutomationRunner(
+    screen_controller=screen_controller,
+    action_handler=action_handler,
+    ui_tars_client=ui_tars_client
+)
 
 
 @app.get("/")
@@ -175,11 +181,72 @@ async def websocket_endpoint(websocket: WebSocket):
                     "message": f"{setting} set to {value}"
                 })
 
+            elif data.get("type") == "goal_automation":
+                # 목표 기반 자동화
+                try:
+                    action = data.get("action")
+                    logger.info(f"Goal automation action: {action}")
+
+                    if action == "start":
+                        goal = data.get("goal")
+                        max_steps = data.get("max_steps", 50)
+
+                        if not goal:
+                            await websocket.send_json({
+                                "type": "error",
+                                "message": "Goal is required",
+                                "code": "MISSING_GOAL"
+                            })
+                            continue
+
+                        if not ui_tars_client.is_available():
+                            await websocket.send_json({
+                                "type": "error",
+                                "message": "OpenAI API key not configured",
+                                "code": "API_NOT_CONFIGURED"
+                            })
+                            continue
+
+                        await goal_runner.start(
+                            goal=goal,
+                            max_steps=max_steps,
+                            websocket=websocket
+                        )
+
+                    elif action == "stop":
+                        goal_runner.stop()
+                        await websocket.send_json({
+                            "type": "status",
+                            "status": "stopping",
+                            "message": "Goal automation stop requested"
+                        })
+
+                    elif action == "status":
+                        status = goal_runner.get_status()
+                        await websocket.send_json(status.model_dump())
+
+                except RuntimeError as e:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": str(e),
+                        "code": "AUTOMATION_ERROR"
+                    })
+                except Exception as e:
+                    logger.error(f"Goal automation error: {e}", exc_info=True)
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": str(e),
+                        "code": "AUTOMATION_ERROR"
+                    })
+
     except WebSocketDisconnect:
         logger.info(f"Client disconnected: {client_id}")
     except Exception as e:
         logger.error(f"WebSocket error: {e}", exc_info=True)
     finally:
+        # Stop goal automation if running
+        if goal_runner.is_running:
+            goal_runner.stop()
         screen_controller.stop_streaming()
         streaming_task.cancel()
         try:

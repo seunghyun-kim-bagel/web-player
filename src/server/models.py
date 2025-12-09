@@ -73,3 +73,45 @@ class AICommandResponse(BaseModel):
     action_params: Optional[dict] = Field(None, description="액션 파라미터")
     message: Optional[str] = None
     error: Optional[str] = None
+
+
+# ============================================================
+# Goal Automation Models
+# ============================================================
+
+class GoalStatus(BaseModel):
+    """목표 달성 상태"""
+    achieved: bool = False
+    progress_description: str = ""
+    progress_percent: int = 0
+    confidence: float = 0.0
+
+
+class ActionHistoryEntry(BaseModel):
+    """액션 히스토리 항목"""
+    step: int
+    timestamp: float
+    action_type: str
+    action_params: dict = {}
+    thought: str = ""
+    screen_description: str = ""
+
+
+class GoalAutomationRequest(BaseModel):
+    """목표 자동화 요청"""
+    type: Literal["goal_automation"] = "goal_automation"
+    action: Literal["start", "stop"]
+    goal: Optional[str] = None
+    max_steps: int = 50
+
+
+class GoalAutomationStatus(BaseModel):
+    """목표 자동화 상태"""
+    type: Literal["automation_status"] = "automation_status"
+    is_running: bool
+    current_step: int
+    max_steps: int
+    goal: str
+    goal_status: GoalStatus
+    last_action: Optional[ActionHistoryEntry] = None
+    finish_reason: Optional[str] = None

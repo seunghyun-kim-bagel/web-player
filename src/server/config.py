@@ -4,6 +4,12 @@ Web Player - 설정 관리
 import os
 from dataclasses import dataclass
 from typing import Optional
+from pathlib import Path
+
+# .env 파일 로드
+from dotenv import load_dotenv
+env_path = Path(__file__).parent.parent.parent / ".env"
+load_dotenv(env_path)
 
 
 def get_env(key: str, default: str = None) -> Optional[str]:
